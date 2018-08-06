@@ -9,7 +9,8 @@ import { ValidationError } from '../../components';
 
 import css from './LocationAutocompleteInput.css';
 
-const DEBOUNCE_WAIT_TIME = 200;
+const DEBOUNCE_WAIT_TIME = 300;
+const DEBOUNCE_WAIT_TIME_FOR_SHORT_QUERIES = 1000;
 const KEY_CODE_ARROW_UP = 38;
 const KEY_CODE_ARROW_DOWN = 40;
 const KEY_CODE_ENTER = 13;
@@ -170,6 +171,12 @@ class LocationAutocompleteInput extends Component {
     // Debounce the method to avoid calling the API too many times
     // when the user is typing fast.
     this.predict = debounce(this.predict.bind(this), DEBOUNCE_WAIT_TIME, { leading: true });
+
+    this.shortQueryTimeout = null;
+  }
+
+  componentWillUnmount() {
+    window.clearTimeout(this.shortQueryTimeout);
   }
 
   // Interpret input key event
@@ -221,7 +228,17 @@ class LocationAutocompleteInput extends Component {
       return;
     }
 
-    this.predict(newValue);
+    if (newValue.length >= 3) {
+      if (this.shortQueryTimeout) {
+        window.clearTimeout(this.shortQueryTimeout);
+      }
+
+      this.predict(newValue);
+    } else {
+      this.shortQueryTimeout = window.setTimeout(() => {
+        this.predict(newValue);
+      }, DEBOUNCE_WAIT_TIME_FOR_SHORT_QUERIES);
+    }
   }
 
   // Change the currently highlighted item by calculating the new
@@ -295,10 +312,16 @@ class LocationAutocompleteInput extends Component {
       });
   }
   selectItemIfNoneSelected() {
-    const { search, selectedPlaceId } = currentValue(this.props);
+    const { search, selectedPlaceId, predictions } = currentValue(this.props);
     if (search && !selectedPlaceId) {
-      const index = this.state.highlightedIndex !== -1 ? this.state.highlightedIndex : 0;
-      this.selectItem(index);
+      if (predictions && predictions.length > 0) {
+        const index = this.state.highlightedIndex !== -1 ? this.state.highlightedIndex : 0;
+        this.selectItem(index);
+      } else {
+        this.predict(search).then(() => {
+          this.selectItem(0);
+        });
+      }
     }
   }
   predict(search) {
@@ -312,7 +335,7 @@ class LocationAutocompleteInput extends Component {
       this.autocompleteSessionToken || new window.google.maps.places.AutocompleteSessionToken();
     const sessionToken = this.autocompleteSessionToken;
 
-    getPlacePredictions(search, sessionToken)
+    return getPlacePredictions(search, sessionToken)
       .then(results => {
         const { search: currentSearch } = currentValue(this.props);
 
