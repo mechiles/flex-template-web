@@ -152,3 +152,18 @@ export const hasSameSDKBounds = (sdkBounds1, sdkBounds2) => {
     sdkBounds1.sw.lng === sdkBounds2.sw.lng
   );
 };
+
+export const locationBounds = (latlng, distance) => {
+  const bounds = new window.google.maps.Circle({
+    center: new window.google.maps.LatLng(latlng.lat, latlng.lng),
+    radius: distance,
+  }).getBounds();
+
+  const ne = bounds.getNorthEast();
+  const sw = bounds.getSouthWest();
+
+  return new SDKLatLngBounds(
+    new SDKLatLng(ne.lat(), ne.lng()),
+    new SDKLatLng(sw.lat(), sw.lng())
+  );
+};

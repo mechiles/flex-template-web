@@ -142,6 +142,7 @@ class LocationAutocompleteInputImpl extends Component {
       selectionInProgress: false,
       touchStartedFrom: null,
       highlightedIndex: -1, // -1 means no highlight
+      fetchingPlaceDetails: false,
     };
 
     // Ref to the input element.
@@ -259,9 +260,12 @@ class LocationAutocompleteInputImpl extends Component {
       selectedPlace: null,
     });
 
+    this.setState({fetchingPlaceDetails: true});
+
     this.geocoder
       .getPlaceDetails(prediction)
       .then(place => {
+        this.setState({fetchingPlaceDetails: false});
         this.props.input.onChange({
           search: place.address,
           predictions: [],
@@ -269,6 +273,7 @@ class LocationAutocompleteInputImpl extends Component {
         });
       })
       .catch(e => {
+        this.setState({fetchingPlaceDetails: false});
         // eslint-disable-next-line no-console
         console.error(e);
         this.props.input.onChange({
@@ -420,7 +425,7 @@ class LocationAutocompleteInputImpl extends Component {
           autoFocus={autoFocus}
           placeholder={placeholder}
           name={name}
-          value={search}
+          value={this.state.fetchingPlaceDetails ? 'loading...' : search}
           onFocus={handleOnFocus}
           onBlur={this.handleOnBlur}
           onChange={this.onChange}
